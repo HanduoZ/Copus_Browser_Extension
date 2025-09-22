@@ -8,11 +8,6 @@
   </head>
   <body>
     <main class="popup">
-      <header class="popup__header">
-        <h1 class="popup__title">Publish to Copus</h1>
-        <p class="popup__subtitle">Save the current page and share it with your readers.</p>
-      </header>
-
       <section class="popup__section popup__section--page-info">
         <h2 class="section__title">Page details</h2>
         <p class="page-info"><span class="label">Title:</span> <span id="page-title">Loading...</span></p>
@@ -22,18 +17,28 @@
       <section class="popup__section popup__section--cover">
         <h2 class="section__title">Cover image<span class="required">*</span></h2>
         <div id="cover-container" class="cover-container">
+          <img id="cover-preview" class="cover-preview" alt="Selected cover preview" hidden />
+          <button
+            id="cover-remove"
+            class="cover-remove"
+            type="button"
+            aria-label="Remove cover image"
+            hidden
+          >
+            &times;
+          </button>
           <div id="cover-placeholder" class="cover-placeholder">
             <p>No cover image selected.</p>
             <p>Please upload or capture an image to continue.</p>
+            <div id="cover-controls" class="cover-controls">
+              <label class="button button--file" for="cover-upload">Upload from device</label>
+              <input id="cover-upload" type="file" accept="image/*" hidden />
+              <button id="cover-screenshot" class="button" type="button">Capture screenshot</button>
+              <button id="cover-detected-toggle" class="button" type="button">Choose from detected images</button>
+            </div>
           </div>
-          <img id="cover-preview" class="cover-preview" alt="Selected cover preview" hidden />
         </div>
-        <div class="cover-actions">
-          <label class="button button--file" for="cover-upload">Upload from device</label>
-          <input id="cover-upload" type="file" accept="image/*" hidden />
-          <button id="cover-screenshot" class="button" type="button">Capture screenshot</button>
-        </div>
-        <div id="image-selection" class="image-selection"></div>
+        <div id="image-selection" class="image-selection image-selection--hidden" hidden></div>
       </section>
 
       <section class="popup__section">
@@ -45,7 +50,13 @@
 
       <section class="popup__section">
         <h2 class="section__title">Recommendation reason<span class="required">*</span></h2>
-        <textarea id="recommendation-input" class="input input--textarea" rows="4" placeholder="Share why this page matters." required></textarea>
+        <textarea
+          id="recommendation-input"
+          class="input input--textarea"
+          rows="4"
+          placeholder="Share why this page matters."
+          required
+        ></textarea>
       </section>
 
       <section class="popup__section popup__section--actions">

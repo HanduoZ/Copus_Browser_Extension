@@ -23,21 +23,6 @@ body {
   padding: 16px;
 }
 
-.popup__header {
-  margin-bottom: 12px;
-}
-
-.popup__title {
-  font-size: 1.5rem;
-  margin: 0 0 4px;
-}
-
-.popup__subtitle {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 0.9rem;
-}
-
 .popup__section {
   margin-bottom: 16px;
 }
@@ -73,6 +58,8 @@ body {
   background: #f8fafc;
   overflow: hidden;
   border-radius: 8px;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .cover-placeholder {
@@ -82,16 +69,51 @@ body {
   padding: 0 12px;
 }
 
+.cover-placeholder p {
+  margin: 4px 0;
+}
+
 .cover-preview {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.cover-actions {
-  display: flex;
+.cover-container--filled {
+  border-style: solid;
+  padding: 0;
+}
+
+.cover-controls {
+  display: grid;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 12px;
+}
+
+.cover-controls .button {
+  width: 100%;
+}
+
+.cover-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-remove:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .button {
@@ -110,6 +132,12 @@ body {
 
 .button:hover {
   background: #e3ebf6;
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .button--primary {
@@ -133,6 +161,10 @@ body {
   margin-top: 12px;
   max-height: 160px;
   overflow-y: auto;
+}
+
+.image-selection--hidden {
+  display: none;
 }
 
 .image-selection__empty {
@@ -199,9 +231,4 @@ body {
 .popup__section--actions {
   display: flex;
   justify-content: flex-end;
-}
-
-.button[disabled] {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
