@@ -133,15 +133,27 @@ async function fetchPageData(tabId) {
 }
 
 function extractCategoriesFromResponse(rawResponse) {
+  if (!rawResponse) {
+    return null;
+  }
+
   if (Array.isArray(rawResponse)) {
     return rawResponse;
   }
 
-  if (rawResponse && Array.isArray(rawResponse.data)) {
-    return rawResponse.data;
+  if (Array.isArray(rawResponse.categoryList)) {
+    return rawResponse.categoryList;
   }
 
-  if (rawResponse && rawResponse.data) {
+  if (rawResponse.data) {
+    if (Array.isArray(rawResponse.data)) {
+      return rawResponse.data;
+    }
+
+    if (Array.isArray(rawResponse.data.categoryList)) {
+      return rawResponse.data.categoryList;
+    }
+
     if (Array.isArray(rawResponse.data.list)) {
       return rawResponse.data.list;
     }
@@ -151,12 +163,14 @@ function extractCategoriesFromResponse(rawResponse) {
     }
   }
 
-  if (rawResponse && Array.isArray(rawResponse.result)) {
-    return rawResponse.result;
-  }
+  if (rawResponse.result) {
+    if (Array.isArray(rawResponse.result)) {
+      return rawResponse.result;
+    }
 
-  if (rawResponse && rawResponse.result && Array.isArray(rawResponse.result.list)) {
-    return rawResponse.result.list;
+    if (Array.isArray(rawResponse.result.list)) {
+      return rawResponse.result.list;
+    }
   }
 
   return null;
@@ -194,22 +208,37 @@ function populateCategorySelect(categories) {
   placeholderOption.selected = true;
   elements.categorySelect.appendChild(placeholderOption);
 
+  let optionsAdded = 0;
+
   categories.forEach((category) => {
-    const option = document.createElement('option');
-    option.value =
+    const categoryId =
+      category.categoryId ||
       category.id ||
       category.value ||
-      category.categoryId ||
       category.code ||
       '';
-    option.textContent =
+
+    const categoryName =
+      category.categoryName ||
       category.name ||
       category.label ||
-      category.categoryName ||
       category.title ||
       'Unnamed category';
+
+    if (!categoryId || !categoryName) {
+      return;
+    }
+
+    const option = document.createElement('option');
+    option.value = categoryId;
+    option.textContent = categoryName;
     elements.categorySelect.appendChild(option);
+    optionsAdded += 1;
   });
+
+  if (optionsAdded === 0) {
+    setStatus('No categories available from Copus. Please try again later.', 'error');
+  }
 }
 
 function validateForm() {
