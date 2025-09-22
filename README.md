@@ -27,4 +27,12 @@ node scripts/bumpVersion.js
 > **Note:** Run the script immediately before committing your work so every pull request carries a unique version pair.
 > This keeps GitHub from flagging manifest conflicts when multiple updates are in flight.
 
+You can double-check that no merge markers accidentally remain in the repository by running the conflict scanner:
+
+```
+node scripts/checkForConflicts.js
+```
+
+The command exits with a non-zero status if it finds any `<<<<<<<`, `=======`, or `>>>>>>>` markers so they can be cleaned up before opening a pull request.
+
 The publish action currently logs the prepared payload and can be replaced with the official Copus API integration when it becomes available.
