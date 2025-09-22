@@ -198,13 +198,16 @@ async function fetchCategories() {
       throw new Error(`Failed to load categories (${response.status})`);
     }
 
-    const data = await response.json();
+    const responseData = await response.json();
 
-    if (!Array.isArray(data)) {
+    // Extract categories from the nested response structure
+    const categories = responseData?.data?.data;
+
+    if (!Array.isArray(categories)) {
       throw new Error('Unexpected category response format.');
     }
 
-    populateCategorySelect(data);
+    populateCategorySelect(categories);
   } catch (error) {
     setStatus(`Unable to load categories: ${error.message}`, 'error');
   }
@@ -384,7 +387,6 @@ async function handleScreenshotCapture() {
 
 async function initialize() {
   cacheElements();
-  setStatus('Initializing...');
 
   const tab = await queryActiveTab();
   if (!tab) {
@@ -415,13 +417,11 @@ async function initialize() {
       state.images = [];
       setCoverImage(null, null);
       renderImageSelection([]);
-      setStatus('No images detected on this page. Please upload or capture a cover image.', 'error');
     }
   } catch (error) {
     state.images = [];
     setCoverImage(null, null);
     renderImageSelection([]);
-    setStatus(`Unable to inspect the page: ${error.message}`, 'error');
   }
 
   fetchCategories();
