@@ -18,10 +18,13 @@ Copus is a browser extension that helps authors save the current webpage to the 
 
 ### Version management
 
-Run the helper script below before committing changes so the manifest version advances and future merges avoid conflicts:
+Run the helper script below before committing changes so the manifest version and manifest version name advance and future merges avoid conflicts:
 
 ```
 node scripts/bumpVersion.js
 ```
+
+> **Note:** Run the script immediately before committing your work so every pull request carries a unique version pair.
+> This keeps GitHub from flagging manifest conflicts when multiple updates are in flight.
 
 The publish action currently logs the prepared payload and can be replaced with the official Copus API integration when it becomes available.

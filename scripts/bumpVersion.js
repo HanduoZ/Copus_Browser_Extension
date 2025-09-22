@@ -38,6 +38,7 @@ function main() {
 
   const nextVersion = bumpPatch(currentVersion);
   manifest.version = nextVersion;
+  manifest.version_name = nextVersion;
   writeManifest(manifest);
 
   console.log(`Bumped manifest version from ${currentVersion} to ${nextVersion}.`);
