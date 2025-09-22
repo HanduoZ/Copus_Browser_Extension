@@ -1,29 +1,38 @@
+console.log('Popup script loaded');
+
 const state = {
   coverImage: null,
   coverSourceType: null,
   images: [],
   activeTabId: null,
   activeWindowId: null,
-  imageSelectionVisible: false
+  imageSelectionVisible: false,
+  pageTitle: '',
+  pageUrl: ''
 };
 
 const elements = {};
 
 function cacheElements() {
-  elements.pageTitle = document.getElementById('page-title');
-  elements.pageUrl = document.getElementById('page-url');
   elements.coverContainer = document.getElementById('cover-container');
   elements.coverEmpty = document.getElementById('cover-empty');
   elements.coverPreview = document.getElementById('cover-preview');
   elements.coverRemove = document.getElementById('cover-remove');
   elements.coverUpload = document.getElementById('cover-upload');
   elements.coverScreenshot = document.getElementById('cover-screenshot');
-  elements.imageSelection = document.getElementById('image-selection');
   elements.imageSelectionToggle = document.getElementById('toggle-detected-images');
   elements.categorySelect = document.getElementById('category-select');
   elements.recommendationInput = document.getElementById('recommendation-input');
   elements.publishButton = document.getElementById('publish-button');
   elements.statusMessage = document.getElementById('status-message');
+  elements.popup = document.querySelector('.popup');
+  elements.imageSelectionView = document.getElementById('image-selection-view');
+  elements.imageSelectionGrid = document.getElementById('image-selection-grid');
+  elements.goBackButton = document.getElementById('go-back-button');
+
+  console.log('Element cache results:');
+  console.log('coverScreenshot:', elements.coverScreenshot);
+  console.log('imageSelectionToggle:', elements.imageSelectionToggle);
 }
 
 function setStatus(message, type = 'info') {
@@ -64,19 +73,12 @@ function setCoverImage(coverImage, sourceType) {
 
 function clearCoverImage() {
   setCoverImage(null, null);
-  setStatus('Cover image removed. Please choose, upload, or capture a new image.');
+  setStatus('');
 }
 
 function updateImageSelectionHighlight() {
-  const options = elements.imageSelection.querySelectorAll('.image-option');
-  options.forEach((option) => {
-    const imageSrc = option.dataset.src;
-    if (state.coverImage && state.coverImage.src === imageSrc && state.coverSourceType === 'page') {
-      option.classList.add('image-option--selected');
-    } else {
-      option.classList.remove('image-option--selected');
-    }
-  });
+  // No longer needed since we removed the inline image selection
+  // Images are now shown in a popup window
 }
 
 function determineMainImage(images) {
@@ -93,80 +95,69 @@ function determineMainImage(images) {
   return sorted[0] || null;
 }
 
-function renderImageSelection(images) {
-  elements.imageSelection.innerHTML = '';
-
-  if (!Array.isArray(images) || images.length === 0) {
-    const emptyState = document.createElement('p');
-    emptyState.textContent = 'No images detected on this page.';
-    emptyState.className = 'image-selection__empty';
-    elements.imageSelection.appendChild(emptyState);
-    elements.imageSelection.hidden = true;
-    state.imageSelectionVisible = false;
-    if (elements.imageSelectionToggle) {
-      elements.imageSelectionToggle.disabled = false;
-      elements.imageSelectionToggle.textContent = 'Show detected images (0)';
-      elements.imageSelectionToggle.setAttribute('aria-expanded', 'false');
-    }
-    return;
-  }
-
-  if (elements.imageSelectionToggle) {
-    const countLabel = `Show detected images (${images.length})`;
-    elements.imageSelectionToggle.disabled = false;
-    elements.imageSelectionToggle.textContent = state.imageSelectionVisible
-      ? 'Hide detected images'
-      : countLabel;
-    elements.imageSelectionToggle.setAttribute(
-      'aria-expanded',
-      state.imageSelectionVisible ? 'true' : 'false'
-    );
-  }
-
-  elements.imageSelection.hidden = !state.imageSelectionVisible;
-
-  images.forEach((image) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'image-option';
-    button.dataset.src = image.src;
-
-    const thumbnail = document.createElement('img');
-    thumbnail.src = image.src;
-    thumbnail.alt = 'Available cover option';
-
-    button.appendChild(thumbnail);
-
-    button.addEventListener('click', () => {
-      setCoverImage({ src: image.src }, 'page');
-      setStatus('Cover image updated from the page images.');
-    });
-
-    elements.imageSelection.appendChild(button);
-  });
-
-  updateImageSelectionHighlight();
-}
-
-function toggleImageSelectionVisibility() {
+function updateDetectedImagesButton(images) {
   if (!elements.imageSelectionToggle) {
     return;
   }
 
-  if (elements.imageSelectionToggle.disabled) {
+  if (!Array.isArray(images) || images.length === 0) {
+    elements.imageSelectionToggle.disabled = true;
+    elements.imageSelectionToggle.textContent = 'No images detected';
     return;
   }
 
-  state.imageSelectionVisible = !state.imageSelectionVisible;
-  elements.imageSelection.hidden = !state.imageSelectionVisible;
-  const collapsedLabel = `Show detected images (${state.images.length})`;
-  elements.imageSelectionToggle.textContent = state.imageSelectionVisible
-    ? 'Hide detected images'
-    : collapsedLabel;
-  elements.imageSelectionToggle.setAttribute(
-    'aria-expanded',
-    state.imageSelectionVisible ? 'true' : 'false'
-  );
+  elements.imageSelectionToggle.disabled = false;
+  elements.imageSelectionToggle.textContent = 'Detected images (' + images.length + ')';
+}
+
+function goBackToMain() {
+  console.log('goBackToMain called');
+  elements.imageSelectionView.hidden = true;
+  elements.popup.hidden = false;
+}
+
+function openImageSelectionView() {
+  console.log('openImageSelectionView called');
+
+  if (!elements.imageSelectionToggle || elements.imageSelectionToggle.disabled) {
+    console.log('Button disabled or not found');
+    return;
+  }
+
+  if (!Array.isArray(state.images) || state.images.length === 0) {
+    setStatus('No images detected on this page.', 'error');
+    console.log('No images found:', state.images);
+    return;
+  }
+
+  console.log('Found images:', state.images.length);
+
+  // Clear and populate the image grid
+  elements.imageSelectionGrid.innerHTML = '';
+
+  state.images.forEach(function(image) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'image-option';
+
+    const img = document.createElement('img');
+    img.src = image.src;
+    img.alt = 'Detected image option';
+
+    button.appendChild(img);
+
+    button.addEventListener('click', function() {
+      setCoverImage({ src: image.src }, 'page');
+      setStatus('');
+      goBackToMain();
+    });
+
+    elements.imageSelectionGrid.appendChild(button);
+  });
+
+  // Show image selection view
+  elements.popup.hidden = true;
+  elements.imageSelectionView.hidden = false;
 }
 
 async function queryActiveTab() {
@@ -195,7 +186,7 @@ async function fetchCategories() {
     const response = await fetch('https://api.test.copus.io/plugin/plugin/author/article/categoryList');
 
     if (!response.ok) {
-      throw new Error(`Failed to load categories (${response.status})`);
+      throw new Error('Failed to load categories (' + response.status + ')');
     }
 
     const responseData = await response.json();
@@ -209,7 +200,7 @@ async function fetchCategories() {
 
     populateCategorySelect(categories);
   } catch (error) {
-    setStatus(`Unable to load categories: ${error.message}`, 'error');
+    setStatus('Unable to load categories: ' + error.message, 'error');
   }
 }
 
@@ -263,7 +254,7 @@ async function publishToCopus(payload) {
       body: JSON.stringify(payload)
     });
   } catch (networkError) {
-    throw new Error(`Network error: ${networkError.message}`);
+    throw new Error('Network error: ' + networkError.message);
   }
 
   let responseBody = null;
@@ -279,7 +270,7 @@ async function publishToCopus(payload) {
   if (!response.ok) {
     const errorMessage =
       (responseBody && (responseBody.error || responseBody.message)) ||
-      `Publish request failed (${response.status})`;
+      'Publish request failed (' + response.status + ')';
     throw new Error(errorMessage);
   }
 
@@ -305,8 +296,8 @@ async function handlePublish() {
   }
 
   const payload = {
-    title: elements.pageTitle.textContent,
-    url: elements.pageUrl.textContent,
+    title: state.pageTitle,
+    url: state.pageUrl,
     coverImage: state.coverImage.src,
     coverImageSource: state.coverSourceType,
     category: elements.categorySelect.value,
@@ -321,7 +312,7 @@ async function handlePublish() {
     const successMessage = result.message || 'The page has been queued for publishing to Copus.';
     setStatus(successMessage, 'success');
   } catch (error) {
-    setStatus(`Unable to publish: ${error.message}`, 'error');
+    setStatus('Unable to publish: ' + error.message, 'error');
   } finally {
     elements.publishButton.disabled = false;
   }
@@ -337,7 +328,7 @@ function handleFileUpload(event) {
   const reader = new FileReader();
   reader.onload = () => {
     setCoverImage({ src: reader.result }, 'upload');
-    setStatus('Cover image updated from your upload.');
+    setStatus('');
     event.target.value = '';
   };
   reader.onerror = () => {
@@ -347,6 +338,7 @@ function handleFileUpload(event) {
 }
 
 async function handleScreenshotCapture() {
+  console.log('handleScreenshotCapture called');
   try {
     elements.coverScreenshot.disabled = true;
     setStatus('Capturing screenshot...');
@@ -377,15 +369,16 @@ async function handleScreenshotCapture() {
     });
 
     setCoverImage({ src: screenshot }, 'screenshot');
-    setStatus('Cover image updated from the screenshot.');
+    setStatus('');
   } catch (error) {
-    setStatus(`Unable to capture screenshot: ${error.message}`, 'error');
+    setStatus('Unable to capture screenshot: ' + error.message, 'error');
   } finally {
     elements.coverScreenshot.disabled = false;
   }
 }
 
 async function initialize() {
+  console.log('Initialize function called');
   cacheElements();
 
   const tab = await queryActiveTab();
@@ -396,41 +389,52 @@ async function initialize() {
 
   state.activeTabId = tab.id;
   state.activeWindowId = tab.windowId;
-  elements.pageTitle.textContent = tab.title || 'Untitled page';
-  elements.pageUrl.textContent = tab.url || 'Unknown URL';
+  state.pageTitle = tab.title || 'Untitled page';
+  state.pageUrl = tab.url || 'Unknown URL';
 
   try {
     const pageData = await fetchPageData(tab.id);
 
     if (pageData && Array.isArray(pageData.images)) {
       state.images = pageData.images;
-      renderImageSelection(pageData.images);
+      updateDetectedImagesButton(pageData.images);
       const mainImage = determineMainImage(pageData.images);
       if (mainImage && mainImage.src) {
         setCoverImage({ src: mainImage.src }, 'page');
-        setStatus('A cover image was automatically selected.');
+        setStatus('');
       } else {
         setCoverImage(null, null);
-        setStatus('No main image detected. Please choose or upload a cover.', 'error');
+        setStatus('');
       }
     } else {
       state.images = [];
       setCoverImage(null, null);
-      renderImageSelection([]);
+      updateDetectedImagesButton([]);
     }
   } catch (error) {
     state.images = [];
     setCoverImage(null, null);
-    renderImageSelection([]);
+    updateDetectedImagesButton([]);
   }
 
   fetchCategories();
 
+  console.log('Adding event listeners...');
+  console.log('coverScreenshot element:', elements.coverScreenshot);
+  console.log('imageSelectionToggle element:', elements.imageSelectionToggle);
+
   elements.coverUpload.addEventListener('change', handleFileUpload);
   elements.coverScreenshot.addEventListener('click', handleScreenshotCapture);
   elements.coverRemove.addEventListener('click', clearCoverImage);
-  elements.imageSelectionToggle.addEventListener('click', toggleImageSelectionVisibility);
+  elements.imageSelectionToggle.addEventListener('click', openImageSelectionView);
+  elements.goBackButton.addEventListener('click', goBackToMain);
   elements.publishButton.addEventListener('click', handlePublish);
+
+  console.log('Event listeners added');
 }
 
-document.addEventListener('DOMContentLoaded', initialize);
+console.log('Setting up DOMContentLoaded listener');
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOMContentLoaded fired, calling initialize');
+  initialize();
+});
