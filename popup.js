@@ -132,48 +132,79 @@ async function fetchPageData(tabId) {
   });
 }
 
+function valueHasCategoryIdentity(value) {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const idCandidate =
+    value.categoryId ??
+    value.categoryID ??
+    value.id ??
+    value.value ??
+    value.code ??
+    value.categoryCode ??
+    value.category_id ??
+    value.category_code;
+
+  const nameCandidate =
+    value.categoryName ??
+    value.category_name ??
+    value.name ??
+    value.label ??
+    value.title ??
+    value.categoryTitle ??
+    value.category_title;
+
+  const hasId = idCandidate !== undefined && idCandidate !== null && String(idCandidate).trim() !== '';
+  const hasName = nameCandidate !== undefined && nameCandidate !== null && String(nameCandidate).trim() !== '';
+
+  return hasId && hasName;
+}
+
 function extractCategoriesFromResponse(rawResponse) {
-  if (!rawResponse) {
+  const visited = new Set();
+
+  function dig(node) {
+    if (node === null || node === undefined) {
+      return null;
+    }
+
+    if (Array.isArray(node)) {
+      const candidates = node.filter((item) => valueHasCategoryIdentity(item));
+      if (candidates.length > 0) {
+        return candidates;
+      }
+
+      for (const item of node) {
+        const result = dig(item);
+        if (Array.isArray(result) && result.length > 0) {
+          return result;
+        }
+      }
+
+      return null;
+    }
+
+    if (typeof node === 'object') {
+      if (visited.has(node)) {
+        return null;
+      }
+
+      visited.add(node);
+
+      for (const key of Object.keys(node)) {
+        const result = dig(node[key]);
+        if (Array.isArray(result) && result.length > 0) {
+          return result;
+        }
+      }
+    }
+
     return null;
   }
 
-  if (Array.isArray(rawResponse)) {
-    return rawResponse;
-  }
-
-  if (Array.isArray(rawResponse.categoryList)) {
-    return rawResponse.categoryList;
-  }
-
-  if (rawResponse.data) {
-    if (Array.isArray(rawResponse.data)) {
-      return rawResponse.data;
-    }
-
-    if (Array.isArray(rawResponse.data.categoryList)) {
-      return rawResponse.data.categoryList;
-    }
-
-    if (Array.isArray(rawResponse.data.list)) {
-      return rawResponse.data.list;
-    }
-
-    if (Array.isArray(rawResponse.data.items)) {
-      return rawResponse.data.items;
-    }
-  }
-
-  if (rawResponse.result) {
-    if (Array.isArray(rawResponse.result)) {
-      return rawResponse.result;
-    }
-
-    if (Array.isArray(rawResponse.result.list)) {
-      return rawResponse.result.list;
-    }
-  }
-
-  return null;
+  return dig(rawResponse);
 }
 
 async function fetchCategories() {
@@ -211,19 +242,29 @@ function populateCategorySelect(categories) {
   let optionsAdded = 0;
 
   categories.forEach((category) => {
-    const categoryId =
-      category.categoryId ||
-      category.id ||
-      category.value ||
-      category.code ||
+    const categoryIdCandidate =
+      category.categoryId ??
+      category.categoryID ??
+      category.id ??
+      category.value ??
+      category.code ??
+      category.categoryCode ??
+      category.category_id ??
+      category.category_code ??
       '';
 
-    const categoryName =
-      category.categoryName ||
-      category.name ||
-      category.label ||
-      category.title ||
-      'Unnamed category';
+    const categoryNameCandidate =
+      category.categoryName ??
+      category.category_name ??
+      category.name ??
+      category.label ??
+      category.title ??
+      category.categoryTitle ??
+      category.category_title ??
+      '';
+
+    const categoryId = String(categoryIdCandidate).trim();
+    const categoryName = String(categoryNameCandidate).trim();
 
     if (!categoryId || !categoryName) {
       return;
