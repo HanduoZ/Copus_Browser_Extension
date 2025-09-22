@@ -190,7 +190,7 @@ async function fetchPageData(tabId) {
   });
 }
 
-function parseJsonMaybe(value) {
+function tryParseJson(value) {
   if (typeof value !== 'string') {
     return value;
   }
@@ -210,137 +210,142 @@ function parseJsonMaybe(value) {
   try {
     return JSON.parse(trimmed);
   } catch (error) {
-    console.warn('Failed to parse JSON string in category payload', error);
+    console.warn('Unable to parse JSON from category payload.', error);
     return value;
   }
 }
 
-function valueHasCategoryIdentity(value) {
-  if (!value || typeof value !== 'object') {
-    return false;
+function normalizeCategoryEntry(rawValue) {
+  if (!rawValue || typeof rawValue !== 'object') {
+    return null;
   }
 
   const idCandidate =
-    value.categoryId ??
-    value.categoryID ??
-    value.category_id ??
-    value.category_code ??
-    value.categoryCode ??
-    value.id ??
-    value.value ??
-    value.code;
+    rawValue.categoryId ??
+    rawValue.categoryID ??
+    rawValue.category_id ??
+    rawValue.category_code ??
+    rawValue.categoryCode ??
+    rawValue.id ??
+    rawValue.value ??
+    rawValue.code;
 
   const nameCandidate =
-    value.categoryName ??
-    value.category_name ??
-    value.categoryTitle ??
-    value.category_title ??
-    value.name ??
-    value.label ??
-    value.title;
+    rawValue.categoryName ??
+    rawValue.category_name ??
+    rawValue.categoryTitle ??
+    rawValue.category_title ??
+    rawValue.name ??
+    rawValue.label ??
+    rawValue.title;
 
-  const hasId = idCandidate !== undefined && idCandidate !== null && String(idCandidate).trim() !== '';
-  const hasName = nameCandidate !== undefined && nameCandidate !== null && String(nameCandidate).trim() !== '';
-
-  return hasId && hasName;
-}
-
-function normalizeCategory(value) {
-  if (!valueHasCategoryIdentity(value)) {
+  if (idCandidate === undefined || idCandidate === null) {
     return null;
   }
 
-  const categoryId =
-    value.categoryId ??
-    value.categoryID ??
-    value.category_id ??
-    value.category_code ??
-    value.categoryCode ??
-    value.id ??
-    value.value ??
-    value.code;
+  if (nameCandidate === undefined || nameCandidate === null) {
+    return null;
+  }
 
-  const categoryName =
-    value.categoryName ??
-    value.category_name ??
-    value.categoryTitle ??
-    value.category_title ??
-    value.name ??
-    value.label ??
-    value.title;
+  const categoryId = String(idCandidate).trim();
+  const categoryName = String(nameCandidate).trim();
 
-  return {
-    categoryId: String(categoryId).trim(),
-    categoryName: String(categoryName).trim()
-  };
+  if (!categoryId || !categoryName) {
+    return null;
+  }
+
+  return { id: categoryId, name: categoryName };
 }
 
-function collectCategoryNodes(node, bucket, visited) {
-  if (node === null || node === undefined) {
+function collectCategories(candidate, bucket, visited) {
+  if (candidate === null || candidate === undefined) {
     return;
   }
 
-  const parsedNode = parseJsonMaybe(node);
+  const parsedCandidate = tryParseJson(candidate);
 
-  if (typeof parsedNode === 'object') {
-    if (visited.has(parsedNode)) {
+  if (typeof parsedCandidate === 'object') {
+    if (visited.has(parsedCandidate)) {
       return;
     }
 
-    visited.add(parsedNode);
+    visited.add(parsedCandidate);
   }
 
-  if (Array.isArray(parsedNode)) {
-    parsedNode.forEach((item) => {
-      const normalized = normalizeCategory(item);
-      if (normalized) {
-        bucket.push(normalized);
-      }
-      collectCategoryNodes(item, bucket, visited);
+  if (Array.isArray(parsedCandidate)) {
+    parsedCandidate.forEach((entry) => {
+      collectCategories(entry, bucket, visited);
     });
     return;
   }
 
-  if (typeof parsedNode === 'object') {
-    const prioritizedKeys = [
-      'categoryList',
-      'categories',
-      'items',
-      'list',
-      'rows',
-      'records',
-      'data',
-      'result',
-      'payload',
-      'response',
-      'children'
-    ];
-
-    prioritizedKeys.forEach((key) => {
-      if (Object.prototype.hasOwnProperty.call(parsedNode, key)) {
-        collectCategoryNodes(parsedNode[key], bucket, visited);
-      }
-    });
-
-    Object.values(parsedNode).forEach((value) => {
-      collectCategoryNodes(value, bucket, visited);
-    });
+  if (typeof parsedCandidate !== 'object') {
+    return;
   }
+
+  const normalized = normalizeCategoryEntry(parsedCandidate);
+  if (normalized) {
+    bucket.push(normalized);
+  }
+
+  const childKeys = ['children', 'categoryList', 'list', 'items', 'rows', 'records'];
+
+  childKeys.forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(parsedCandidate, key)) {
+      collectCategories(parsedCandidate[key], bucket, visited);
+    }
+  });
+
+  Object.values(parsedCandidate).forEach((value) => {
+    collectCategories(value, bucket, visited);
+  });
 }
 
-function extractCategoriesFromResponse(rawResponse) {
-  const bucket = [];
-  const visited = new Set();
-  collectCategoryNodes(rawResponse, bucket, visited);
+function resolveCategoriesFromPayload(payload) {
+  const entryPoints = [];
 
-  if (bucket.length === 0) {
-    return null;
+  if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload)) {
+      entryPoints.push(payload);
+    } else {
+      const containerKeys = ['data', 'result', 'payload', 'response'];
+      const categoryRoot = containerKeys.reduce((acc, key) => {
+        if (acc !== undefined) {
+          return acc;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(payload, key)) {
+          return payload[key];
+        }
+
+        return undefined;
+      }, undefined);
+
+      if (categoryRoot !== undefined) {
+        entryPoints.push(categoryRoot);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(payload, 'categoryList')) {
+        entryPoints.push(payload.categoryList);
+      }
+    }
   }
 
+  if (entryPoints.length === 0) {
+    entryPoints.push(payload);
+  }
+
+  const collected = [];
+  const visited = new Set();
+
+  entryPoints.forEach((entry) => {
+    collectCategories(entry, collected, visited);
+  });
+
   const unique = new Map();
-  bucket.forEach((category) => {
-    if (!unique.has(category.categoryId)) {
-      unique.set(category.categoryId, category);
+  collected.forEach((category) => {
+    if (!unique.has(category.id)) {
+      unique.set(category.id, category);
     }
   });
 
@@ -356,10 +361,10 @@ async function fetchCategories() {
     }
 
     const data = await response.json();
-    const categories = extractCategoriesFromResponse(data);
+    const categories = resolveCategoriesFromPayload(data);
 
-    if (!Array.isArray(categories)) {
-      throw new Error('Unexpected category response format.');
+    if (!Array.isArray(categories) || categories.length === 0) {
+      throw new Error('No categories returned from Copus.');
     }
 
     populateCategorySelect(categories);
@@ -382,37 +387,13 @@ function populateCategorySelect(categories) {
   let optionsAdded = 0;
 
   categories.forEach((category) => {
-    const categoryIdCandidate =
-      category.categoryId ??
-      category.categoryID ??
-      category.id ??
-      category.value ??
-      category.code ??
-      category.categoryCode ??
-      category.category_id ??
-      category.category_code ??
-      '';
-
-    const categoryNameCandidate =
-      category.categoryName ??
-      category.category_name ??
-      category.name ??
-      category.label ??
-      category.title ??
-      category.categoryTitle ??
-      category.category_title ??
-      '';
-
-    const categoryId = String(categoryIdCandidate).trim();
-    const categoryName = String(categoryNameCandidate).trim();
-
-    if (!categoryId || !categoryName) {
+    if (!category || !category.id || !category.name) {
       return;
     }
 
     const option = document.createElement('option');
-    option.value = categoryId;
-    option.textContent = categoryName;
+    option.value = category.id;
+    option.textContent = category.name;
     elements.categorySelect.appendChild(option);
     optionsAdded += 1;
   });
