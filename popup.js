@@ -58,6 +58,9 @@ function setCoverImage(coverImage, sourceType) {
     elements.coverPlaceholder.hidden = true;
     elements.coverRemoveButton.hidden = false;
     elements.coverContainer.classList.add('cover-container--filled');
+    if (elements.coverControls) {
+      elements.coverControls.hidden = true;
+    }
   } else {
     elements.coverPreview.hidden = true;
     elements.coverPlaceholder.hidden = false;
