@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Copus",
+  "description": "Save and publish webpages to Copus with cover image and categorization tools.",
+  "version": "0.1.1",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "tabCapture"
+  ],
+  "host_permissions": [
+    "https://api.test.copus.io/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "contentScript.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
