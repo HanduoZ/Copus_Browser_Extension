@@ -16,4 +16,12 @@ Copus is a browser extension that helps authors save the current webpage to the 
 2. Use the **Load unpacked** button and select this repository directory.
 3. Open any webpage and launch the Copus extension popup from the toolbar to test the workflow.
 
+### Version management
+
+Run the helper script below before committing changes so the manifest version advances and future merges avoid conflicts:
+
+```
+node scripts/bumpVersion.js
+```
+
 The publish action currently logs the prepared payload and can be replaced with the official Copus API integration when it becomes available.
