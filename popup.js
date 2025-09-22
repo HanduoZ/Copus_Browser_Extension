@@ -190,10 +190,52 @@ function validateForm() {
 }
 
 async function publishToCopus(payload) {
-  // Placeholder for future API integration.
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  console.info('Publishing payload prepared for Copus:', payload);
-  return { success: true };
+  const endpoint = 'https://api.test.copus.io/plugin/plugin/author/article/publish';
+
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (networkError) {
+    throw new Error(`Network error: ${networkError.message}`);
+  }
+
+  let responseBody = null;
+  const rawBody = await response.text();
+  if (rawBody) {
+    try {
+      responseBody = JSON.parse(rawBody);
+    } catch (parseError) {
+      throw new Error('Received invalid JSON from the Copus publish API.');
+    }
+  }
+
+  if (!response.ok) {
+    const errorMessage =
+      (responseBody && (responseBody.error || responseBody.message)) ||
+      `Publish request failed (${response.status})`;
+    throw new Error(errorMessage);
+  }
+
+  if (responseBody && responseBody.success === false) {
+    throw new Error(responseBody.message || responseBody.error || 'Publishing failed.');
+  }
+
+  const success = !responseBody || responseBody.success === true || responseBody.status === 'success';
+  const message =
+    (responseBody && (responseBody.message || responseBody.statusMessage)) ||
+    'The page has been queued for publishing to Copus.';
+
+  if (!success) {
+    throw new Error('Publishing failed due to an unexpected response.');
+  }
+
+  return { success: true, message, data: responseBody };
 }
 
 async function handlePublish() {
@@ -215,12 +257,8 @@ async function handlePublish() {
     setStatus('Publishing to Copus...');
 
     const result = await publishToCopus(payload);
-
-    if (result.success) {
-      setStatus('The page has been queued for publishing to Copus.', 'success');
-    } else {
-      throw new Error(result.message || 'Publishing failed.');
-    }
+    const successMessage = result.message || 'The page has been queued for publishing to Copus.';
+    setStatus(successMessage, 'success');
   } catch (error) {
     setStatus(`Unable to publish: ${error.message}`, 'error');
   } finally {
