@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Copus",
   "description": "Save and publish webpages to Copus with cover image and categorization tools.",
-  "version": "0.1.8",
-  "version_name": "0.1.8",
+  "version": "0.1.9",
+  "version_name": "0.1.9",
   "permissions": [
     "activeTab",
     "tabs",
