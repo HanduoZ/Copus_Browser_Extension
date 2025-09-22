@@ -3,7 +3,8 @@ const state = {
   coverSourceType: null,
   images: [],
   activeTabId: null,
-  activeWindowId: null
+  activeWindowId: null,
+  imageSelectionVisible: false
 };
 
 const elements = {};
@@ -11,11 +12,14 @@ const elements = {};
 function cacheElements() {
   elements.pageTitle = document.getElementById('page-title');
   elements.pageUrl = document.getElementById('page-url');
-  elements.coverPlaceholder = document.getElementById('cover-placeholder');
+  elements.coverContainer = document.getElementById('cover-container');
+  elements.coverEmpty = document.getElementById('cover-empty');
   elements.coverPreview = document.getElementById('cover-preview');
+  elements.coverRemove = document.getElementById('cover-remove');
   elements.coverUpload = document.getElementById('cover-upload');
   elements.coverScreenshot = document.getElementById('cover-screenshot');
   elements.imageSelection = document.getElementById('image-selection');
+  elements.imageSelectionToggle = document.getElementById('toggle-detected-images');
   elements.categorySelect = document.getElementById('category-select');
   elements.recommendationInput = document.getElementById('recommendation-input');
   elements.publishButton = document.getElementById('publish-button');
@@ -39,16 +43,31 @@ function setCoverImage(coverImage, sourceType) {
   state.coverImage = coverImage;
   state.coverSourceType = sourceType;
 
-  if (coverImage && coverImage.src) {
+  const hasImage = Boolean(coverImage && coverImage.src);
+
+  if (hasImage) {
     elements.coverPreview.src = coverImage.src;
     elements.coverPreview.hidden = false;
-    elements.coverPlaceholder.hidden = true;
+    elements.coverEmpty.hidden = true;
+    elements.coverRemove.hidden = false;
   } else {
     elements.coverPreview.hidden = true;
-    elements.coverPlaceholder.hidden = false;
+    elements.coverEmpty.hidden = false;
+    elements.coverRemove.hidden = true;
+    if (elements.coverUpload) {
+      elements.coverUpload.value = '';
+    }
   }
 
+  elements.coverContainer.classList.toggle('cover-container--empty', !hasImage);
+  elements.coverContainer.classList.toggle('cover-container--has-image', hasImage);
+
   updateImageSelectionHighlight();
+}
+
+function clearCoverImage() {
+  setCoverImage(null, null);
+  setStatus('Cover image removed. Please choose, upload, or capture a new image.');
 }
 
 function updateImageSelectionHighlight() {
@@ -85,8 +104,29 @@ function renderImageSelection(images) {
     emptyState.textContent = 'No images detected on this page.';
     emptyState.className = 'image-selection__empty';
     elements.imageSelection.appendChild(emptyState);
+    elements.imageSelection.hidden = true;
+    state.imageSelectionVisible = false;
+    if (elements.imageSelectionToggle) {
+      elements.imageSelectionToggle.disabled = false;
+      elements.imageSelectionToggle.textContent = 'Show detected images (0)';
+      elements.imageSelectionToggle.setAttribute('aria-expanded', 'false');
+    }
     return;
   }
+
+  if (elements.imageSelectionToggle) {
+    const countLabel = `Show detected images (${images.length})`;
+    elements.imageSelectionToggle.disabled = false;
+    elements.imageSelectionToggle.textContent = state.imageSelectionVisible
+      ? 'Hide detected images'
+      : countLabel;
+    elements.imageSelectionToggle.setAttribute(
+      'aria-expanded',
+      state.imageSelectionVisible ? 'true' : 'false'
+    );
+  }
+
+  elements.imageSelection.hidden = !state.imageSelectionVisible;
 
   images.forEach((image) => {
     const button = document.createElement('button');
@@ -109,6 +149,27 @@ function renderImageSelection(images) {
   });
 
   updateImageSelectionHighlight();
+}
+
+function toggleImageSelectionVisibility() {
+  if (!elements.imageSelectionToggle) {
+    return;
+  }
+
+  if (elements.imageSelectionToggle.disabled) {
+    return;
+  }
+
+  state.imageSelectionVisible = !state.imageSelectionVisible;
+  elements.imageSelection.hidden = !state.imageSelectionVisible;
+  const collapsedLabel = `Show detected images (${state.images.length})`;
+  elements.imageSelectionToggle.textContent = state.imageSelectionVisible
+    ? 'Hide detected images'
+    : collapsedLabel;
+  elements.imageSelectionToggle.setAttribute(
+    'aria-expanded',
+    state.imageSelectionVisible ? 'true' : 'false'
+  );
 }
 
 async function queryActiveTab() {
@@ -277,6 +338,7 @@ function handleFileUpload(event) {
   reader.onload = () => {
     setCoverImage({ src: reader.result }, 'upload');
     setStatus('Cover image updated from your upload.');
+    event.target.value = '';
   };
   reader.onerror = () => {
     setStatus('Failed to read the selected file. Please try again.', 'error');
@@ -353,11 +415,13 @@ async function initialize() {
         setStatus('No main image detected. Please choose or upload a cover.', 'error');
       }
     } else {
+      state.images = [];
       setCoverImage(null, null);
       renderImageSelection([]);
       setStatus('No images detected on this page. Please upload or capture a cover image.', 'error');
     }
   } catch (error) {
+    state.images = [];
     setCoverImage(null, null);
     renderImageSelection([]);
     setStatus(`Unable to inspect the page: ${error.message}`, 'error');
@@ -367,6 +431,8 @@ async function initialize() {
 
   elements.coverUpload.addEventListener('change', handleFileUpload);
   elements.coverScreenshot.addEventListener('click', handleScreenshotCapture);
+  elements.coverRemove.addEventListener('click', clearCoverImage);
+  elements.imageSelectionToggle.addEventListener('click', toggleImageSelectionVisibility);
   elements.publishButton.addEventListener('click', handlePublish);
 }
 
